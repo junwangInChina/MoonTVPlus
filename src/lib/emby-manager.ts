@@ -22,6 +22,7 @@ interface EmbySourceConfig {
   removeEmbyPrefix?: boolean;
   appendMediaSourceId?: boolean;
   transcodeMp4?: boolean;
+  proxyPlay?: boolean; // 视频播放代理开关
 }
 
 class EmbyManager {
@@ -182,6 +183,7 @@ export function migrateEmbyConfig(config: AdminConfig): AdminConfig {
         removeEmbyPrefix: false,
         appendMediaSourceId: false,
         transcodeMp4: false,
+        proxyPlay: false,
       }],
     };
   }

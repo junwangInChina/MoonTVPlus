@@ -60,8 +60,8 @@ export async function GET(
     // 获取 Emby 客户端
     let client = await getEmbyClient(embyKey);
 
-    // 构建 Emby 原始播放链接
-    let embyStreamUrl = await client.getStreamUrl(itemId);
+    // 构建 Emby 原始播放链接（强制获取直接URL，避免代理循环）
+    let embyStreamUrl = await client.getStreamUrl(itemId, true, true);
 
     // 构建请求头，转发 Range 请求
     const requestHeaders: HeadersInit = {};
@@ -81,7 +81,7 @@ export async function GET(
       const { embyManager } = await import('@/lib/emby-manager');
       embyManager.clearCache();
       client = await getEmbyClient(embyKey);
-      embyStreamUrl = await client.getStreamUrl(itemId);
+      embyStreamUrl = await client.getStreamUrl(itemId, true, true);
       videoResponse = await fetch(embyStreamUrl, {
         headers: requestHeaders,
       });

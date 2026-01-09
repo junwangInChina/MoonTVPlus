@@ -11,6 +11,8 @@ interface EmbyConfig {
   removeEmbyPrefix?: boolean;
   appendMediaSourceId?: boolean;
   transcodeMp4?: boolean;
+  proxyPlay?: boolean; // 视频播放代理开关
+  key?: string; // Emby源的唯一标识
 }
 
 interface EmbyItem {
@@ -71,6 +73,8 @@ export class EmbyClient {
   private removeEmbyPrefix: boolean;
   private appendMediaSourceId: boolean;
   private transcodeMp4: boolean;
+  private proxyPlay: boolean;
+  private embyKey?: string;
 
   constructor(config: EmbyConfig) {
     let serverUrl = config.ServerURL.replace(/\/$/, '');
@@ -79,6 +83,8 @@ export class EmbyClient {
     this.removeEmbyPrefix = config.removeEmbyPrefix || false;
     this.appendMediaSourceId = config.appendMediaSourceId || false;
     this.transcodeMp4 = config.transcodeMp4 || false;
+    this.proxyPlay = config.proxyPlay || false;
+    this.embyKey = config.key;
 
     // 如果 URL 不包含 /emby 路径，自动添加（除非启用了 removeEmbyPrefix）
     if (!serverUrl.endsWith('/emby') && !this.removeEmbyPrefix) {
@@ -461,8 +467,27 @@ export class EmbyClient {
     }
   }
 
-  async getStreamUrl(itemId: string, direct: boolean = true): Promise<string> {
+  async getStreamUrl(itemId: string, direct: boolean = true, forceDirectUrl: boolean = false): Promise<string> {
     const token = this.apiKey || this.authToken;
+
+    // 如果启用了代理播放且不是强制获取直接URL，返回代理URL
+    if (this.proxyPlay && !forceDirectUrl) {
+      // 使用固定的token占位符，实际验证在服务端进行
+      const subscribeToken = 'proxy';
+      const filename = this.transcodeMp4 ? 'video.mp4' : 'video';
+
+      // 构建代理URL（相对路径）
+      let proxyUrl = `/api/emby/play/${subscribeToken}/${filename}?itemId=${itemId}`;
+
+      // 如果有embyKey，添加到查询参数
+      if (this.embyKey) {
+        proxyUrl += `&embyKey=${this.embyKey}`;
+      }
+
+      return proxyUrl;
+    }
+
+    // 原有的直接播放逻辑
     let url: string;
 
     if (direct) {

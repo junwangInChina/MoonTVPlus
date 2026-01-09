@@ -3430,6 +3430,7 @@ const EmbyConfigComponent = ({
     removeEmbyPrefix: false,
     appendMediaSourceId: false,
     transcodeMp4: false,
+    proxyPlay: false,
   });
 
   // 从配置加载源列表
@@ -3468,6 +3469,7 @@ const EmbyConfigComponent = ({
       removeEmbyPrefix: false,
       appendMediaSourceId: false,
       transcodeMp4: false,
+      proxyPlay: false,
     });
     setEditingSource(null);
     setShowAddForm(false);
@@ -3901,25 +3903,6 @@ const EmbyConfigComponent = ({
               </button>
             </div>
 
-            {/* 默认源开关 */}
-            <div className='flex items-center justify-between'>
-              <label className='text-sm font-medium text-gray-700 dark:text-gray-300'>
-                设为默认源
-              </label>
-              <button
-                onClick={() => setFormData({ ...formData, isDefault: !formData.isDefault })}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  formData.isDefault ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    formData.isDefault ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            </div>
-
             {/* 高级选项 */}
             <div className='border-t border-gray-200 dark:border-gray-700 pt-4 mt-4'>
               <h4 className='text-sm font-medium text-gray-700 dark:text-gray-300 mb-3'>
@@ -3997,6 +3980,30 @@ const EmbyConfigComponent = ({
                   />
                 </button>
               </div>
+
+              {/* 视频播放代理开关 */}
+              <div className='flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-700'>
+                <div className='flex-1'>
+                  <h4 className='text-sm font-medium text-gray-900 dark:text-white'>
+                    视频播放代理
+                  </h4>
+                  <p className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
+                    启用后视频播放将通过服务器代理
+                  </p>
+                </div>
+                <button
+                  onClick={() => setFormData({ ...formData, proxyPlay: !formData.proxyPlay })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    formData.proxyPlay ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      formData.proxyPlay ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+            </div>
             </div>
 
             {/* 操作按钮 */}
