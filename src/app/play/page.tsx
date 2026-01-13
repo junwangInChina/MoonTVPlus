@@ -567,6 +567,7 @@ function PlayPageClient() {
   // 当集数改变时，重置下集预缓存标记
   useEffect(() => {
     nextEpisodePreCacheTriggeredRef.current = false;
+    nextEpisodeDanmakuPreloadTriggeredRef.current = false;
     // 清理之前的预缓存 HLS 实例
     if (nextEpisodePreCacheHlsRef.current) {
       try {
@@ -1180,6 +1181,7 @@ function PlayPageClient() {
   // 下集预缓存相关
   const nextEpisodePreCacheTriggeredRef = useRef<boolean>(false);
   const nextEpisodePreCacheHlsRef = useRef<any>(null);
+  const nextEpisodeDanmakuPreloadTriggeredRef = useRef<boolean>(false);
 
   const artPlayerRef = useRef<any>(null);
   const artRef = useRef<HTMLDivElement | null>(null);
@@ -3372,6 +3374,120 @@ function PlayPageClient() {
     } finally {
       setDanmakuLoading(false);
       loadingDanmakuEpisodeIdRef.current = null;
+    }
+  };
+
+  // 预加载下一集弹幕（完全复制 loadDanmakuForCurrentEpisode 的逻辑）
+  const preloadNextEpisodeDanmaku = async () => {
+    try {
+      const title = videoTitleRef.current;
+      if (!title) {
+        return;
+      }
+
+      const currentIdx = currentEpisodeIndexRef.current;
+      const nextEpisodeIndex = currentIdx + 1;
+
+      // 1. 检查是否有下一集
+      const episodes = detailRef.current?.episodes;
+      if (!episodes || nextEpisodeIndex >= episodes.length) {
+        return;
+      }
+
+      // 2. 检查缓存是否已存在
+      const cachedData = await getDanmakuFromCache(title, nextEpisodeIndex);
+      if (cachedData && cachedData.comments.length > 0) {
+        return;
+      }
+
+      // 3. 检查是否有手动选择的剧集 ID
+      const manualEpisodeId = getManualDanmakuSelection(title, nextEpisodeIndex);
+      if (manualEpisodeId) {
+        try {
+          await getDanmakuById(manualEpisodeId, title, nextEpisodeIndex);
+          return;
+        } catch (error) {
+          // 继续执行后续逻辑
+        }
+      }
+
+      // 4. 尝试使用保存的动漫ID自动匹配剧集
+      const savedAnimeId = getDanmakuAnimeId(title);
+      if (savedAnimeId) {
+        try {
+          const episodesResult = await getEpisodes(savedAnimeId);
+
+          if (episodesResult.success && episodesResult.bangumi.episodes.length > 0) {
+            const nextVideoEpTitle = detailRef.current?.episodes_titles?.[nextEpisodeIndex];
+            const episode = matchDanmakuEpisode(nextEpisodeIndex, episodesResult.bangumi.episodes, nextVideoEpTitle);
+
+            if (episode) {
+              await getDanmakuById(
+                episode.episodeId,
+                title,
+                nextEpisodeIndex,
+                {
+                  animeId: savedAnimeId,
+                  animeTitle: episodesResult.bangumi.animeTitle,
+                  episodeTitle: episode.episodeTitle,
+                }
+              );
+              return;
+            }
+          }
+        } catch (error) {
+          // 继续执行后续逻辑
+        }
+      }
+
+      // 5. 执行自动搜索弹幕
+      const savedKeyword = getDanmakuSearchKeyword(title);
+      const searchKeyword = savedKeyword || title;
+
+      const searchResult = await searchAnime(searchKeyword);
+      if (!searchResult.success || searchResult.animes.length === 0) {
+        return;
+      }
+
+      // 应用智能过滤
+      const videoYear = detailRef.current?.year;
+      const filteredAnimes = filterDanmakuSources(searchResult.animes, title, videoYear);
+
+      if (filteredAnimes.length === 0) {
+        return;
+      }
+
+      // 检查是否有记忆的选择
+      let selectedAnime = filteredAnimes[0];
+      if (filteredAnimes.length > 1) {
+        const rememberedIndex = getDanmakuSourceIndex(title);
+        if (rememberedIndex !== null && rememberedIndex < filteredAnimes.length) {
+          selectedAnime = filteredAnimes[rememberedIndex];
+        }
+      }
+
+      // 获取剧集列表并匹配
+      const episodesResult = await getEpisodes(selectedAnime.animeId);
+      if (episodesResult.success && episodesResult.bangumi.episodes.length > 0) {
+        const nextVideoEpTitle = detailRef.current?.episodes_titles?.[nextEpisodeIndex];
+        const episode = matchDanmakuEpisode(nextEpisodeIndex, episodesResult.bangumi.episodes, nextVideoEpTitle);
+
+        if (episode) {
+          await getDanmakuById(
+            episode.episodeId,
+            title,
+            nextEpisodeIndex,
+            {
+              animeId: selectedAnime.animeId,
+              animeTitle: selectedAnime.animeTitle,
+              episodeTitle: episode.episodeTitle,
+              searchKeyword: searchKeyword,
+            }
+          );
+        }
+      }
+    } catch (error) {
+      // 静默处理失败
     }
   };
 
@@ -6052,6 +6168,26 @@ function PlayPageClient() {
 
             // 异步执行预缓冲
             preloadNextEpisode();
+          }
+        }
+
+        // 下集弹幕预加载逻辑
+        const nextEpisodeDanmakuPreloadEnabled = typeof window !== 'undefined'
+          ? localStorage.getItem('nextEpisodeDanmakuPreload') === 'true'
+          : false;
+
+        if (nextEpisodeDanmakuPreloadEnabled) {
+          const currentTime = artPlayerRef.current?.currentTime || 0;
+          const duration = artPlayerRef.current?.duration || 0;
+          const progress = duration > 0 ? currentTime / duration : 0;
+
+          // 检查是否已经到达90%播放进度
+          if (duration > 0 && progress >= 0.9 && !nextEpisodeDanmakuPreloadTriggeredRef.current) {
+            // 标记已触发，防止重复执行
+            nextEpisodeDanmakuPreloadTriggeredRef.current = true;
+
+            // 异步执行弹幕预加载
+            preloadNextEpisodeDanmaku();
           }
         }
       });

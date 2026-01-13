@@ -105,6 +105,7 @@ export const UserMenu: React.FC = () => {
     useState(false);
   const [bufferStrategy, setBufferStrategy] = useState('medium');
   const [nextEpisodePreCache, setNextEpisodePreCache] = useState(true);
+  const [nextEpisodeDanmakuPreload, setNextEpisodeDanmakuPreload] = useState(true);
   const [isBufferStrategyDropdownOpen, setIsBufferStrategyDropdownOpen] = useState(false);
   const [searchTraditionalToSimplified, setSearchTraditionalToSimplified] = useState(false);
 
@@ -368,6 +369,11 @@ export const UserMenu: React.FC = () => {
       const savedNextEpisodePreCache = localStorage.getItem('nextEpisodePreCache');
       if (savedNextEpisodePreCache !== null) {
         setNextEpisodePreCache(savedNextEpisodePreCache === 'true');
+      }
+
+      const savedNextEpisodeDanmakuPreload = localStorage.getItem('nextEpisodeDanmakuPreload');
+      if (savedNextEpisodeDanmakuPreload !== null) {
+        setNextEpisodeDanmakuPreload(savedNextEpisodeDanmakuPreload === 'true');
       }
 
       // 加载首页模块配置
@@ -648,6 +654,13 @@ export const UserMenu: React.FC = () => {
     }
   };
 
+  const handleNextEpisodeDanmakuPreloadToggle = (value: boolean) => {
+    setNextEpisodeDanmakuPreload(value);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('nextEpisodeDanmakuPreload', String(value));
+    }
+  };
+
   const handleSearchTraditionalToSimplifiedToggle = (value: boolean) => {
     setSearchTraditionalToSimplified(value);
     if (typeof window !== 'undefined') {
@@ -745,6 +758,7 @@ export const UserMenu: React.FC = () => {
     setDoubanImageProxyUrl(defaultDoubanImageProxyUrl);
     setBufferStrategy('medium');
     setNextEpisodePreCache(true);
+    setNextEpisodeDanmakuPreload(true);
     setHomeModules(defaultHomeModules);
     setSearchTraditionalToSimplified(false);
 
@@ -761,6 +775,7 @@ export const UserMenu: React.FC = () => {
       localStorage.setItem('doubanImageProxyUrl', defaultDoubanImageProxyUrl);
       localStorage.setItem('bufferStrategy', 'medium');
       localStorage.setItem('nextEpisodePreCache', 'true');
+      localStorage.setItem('nextEpisodeDanmakuPreload', 'true');
       localStorage.setItem('homeModules', JSON.stringify(defaultHomeModules));
       localStorage.setItem('searchTraditionalToSimplified', 'false');
       window.dispatchEvent(new CustomEvent('homeModulesUpdated'));
@@ -1593,6 +1608,30 @@ export const UserMenu: React.FC = () => {
               </button>
               {isDanmakuSectionOpen && (
                 <div className='p-3 md:p-4 space-y-4 md:space-y-6'>
+                  {/* 下集弹幕预加载 */}
+                  <div className='flex items-center justify-between'>
+                    <div>
+                      <h4 className='text-sm font-medium text-gray-700 dark:text-gray-300'>
+                        下集弹幕预加载
+                      </h4>
+                      <p className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
+                        播放进度达到90%时，自动预加载下一集弹幕
+                      </p>
+                    </div>
+                    <label className='flex items-center cursor-pointer'>
+                      <div className='relative'>
+                        <input
+                          type='checkbox'
+                          className='sr-only peer'
+                          checked={nextEpisodeDanmakuPreload}
+                          onChange={(e) => handleNextEpisodeDanmakuPreloadToggle(e.target.checked)}
+                        />
+                        <div className='w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-green-500 transition-colors dark:bg-gray-600'></div>
+                        <div className='absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform peer-checked:translate-x-5'></div>
+                      </div>
+                    </label>
+                  </div>
+
                   {/* 清除弹幕缓存 */}
                   <div className='space-y-3'>
                     <div>
