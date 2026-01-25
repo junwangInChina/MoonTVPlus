@@ -1,6 +1,7 @@
 /* eslint-disable no-console,@typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
 
+import { parseAuthInfo } from '@/lib/auth';
 import { getConfig } from '@/lib/config';
 import { db } from '@/lib/db';
 import {
@@ -20,6 +21,21 @@ const STORAGE_TYPE =
     | 'upstash'
     | 'kvrocks'
     | undefined) || 'localstorage';
+
+function buildLoginResponse(authToken?: string | null) {
+  const body: Record<string, unknown> = { ok: true };
+
+  if (authToken) {
+    body.token = authToken;
+    const authInfo = parseAuthInfo(authToken);
+    if (authInfo) {
+      const { password, ...rest } = authInfo;
+      body.auth = rest;
+    }
+  }
+
+  return NextResponse.json(body);
+}
 
 // 生成签名
 async function generateSignature(
@@ -161,7 +177,7 @@ export async function POST(req: NextRequest) {
 
       // 未配置 PASSWORD 时直接放行
       if (!envPassword) {
-        const response = NextResponse.json({ ok: true });
+        const response = buildLoginResponse();
 
         // 清除可能存在的认证cookie
         response.cookies.set('auth', '', {
@@ -169,7 +185,6 @@ export async function POST(req: NextRequest) {
           expires: new Date(0),
           sameSite: 'lax',
           httpOnly: false,
-          secure: process.env.NODE_ENV === 'production',
         });
 
         return response;
@@ -188,7 +203,6 @@ export async function POST(req: NextRequest) {
       }
 
       // 验证成功，设置认证cookie
-      const response = NextResponse.json({ ok: true });
       const username = process.env.USERNAME || 'default';
       const deviceInfo = getDeviceInfo(req);
       const cookieValue = await generateAuthCookie(
@@ -198,6 +212,7 @@ export async function POST(req: NextRequest) {
         true,
         deviceInfo
       ); // localstorage 模式包含 password
+      const response = buildLoginResponse(cookieValue);
       const expires = new Date();
       expires.setDate(expires.getDate() + 60); // 60天过期（Refresh Token 有效期）
 
@@ -255,7 +270,6 @@ export async function POST(req: NextRequest) {
       password === process.env.PASSWORD
     ) {
       // 验证成功，设置认证cookie
-      const response = NextResponse.json({ ok: true });
       const deviceInfo = getDeviceInfo(req);
       const cookieValue = await generateAuthCookie(
         username,
@@ -264,6 +278,7 @@ export async function POST(req: NextRequest) {
         false,
         deviceInfo
       ); // 数据库模式不包含 password
+      const response = buildLoginResponse(cookieValue);
       const expires = new Date();
       expires.setDate(expires.getDate() + 60); // 60天过期（Refresh Token 有效期）
 
@@ -308,7 +323,6 @@ export async function POST(req: NextRequest) {
     }
 
     // 验证成功，设置认证cookie
-    const response = NextResponse.json({ ok: true });
     const deviceInfo = getDeviceInfo(req);
     const cookieValue = await generateAuthCookie(
       username,
@@ -317,16 +331,16 @@ export async function POST(req: NextRequest) {
       false,
       deviceInfo
     ); // 数据库模式不包含 password
+    const response = buildLoginResponse(cookieValue);
     const expires = new Date();
     expires.setDate(expires.getDate() + 60); // 60天过期（Refresh Token 有效期）
 
-    response.cookies.set('auth', cookieValue, {
-      path: '/',
-      expires,
-      sameSite: 'lax',
-      httpOnly: false, // 允许客户端访问
-      secure: process.env.NODE_ENV === 'production', // 生产环境强制 HTTPS
-    });
+  response.cookies.set('auth', cookieValue, {
+    path: '/',
+    expires,
+    sameSite: 'lax',
+    httpOnly: false, // 允许客户端访问
+  });
 
     console.log(`Cookie已设置`);
 
